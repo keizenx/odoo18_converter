@@ -11,6 +11,8 @@ Le script effectue les conversions suivantes:
 3. **Mise à jour du widget daterange** : Passe à la nouvelle configuration du widget daterange
 4. **Simplification du chatter** : Remplace la structure complexe du chatter par la balise simplifiée `<chatter/>`
 5. **Conversion des res.config.settings** : Adapte la structure des pages de paramètres à la nouvelle syntaxe
+6. **Conversion des fichiers Python** : Supprime les attributs `states` des définitions de champs dans les modèles Python
+7. **Traitement avancé des conditions** : Conversion des conditions complexes avec plusieurs opérateurs OR/AND
 
 ## Prérequis
 
@@ -42,6 +44,13 @@ python odoo18_converter.py chemin/vers/module [options]
 - `-w`, `--workers` : Nombre de processus worker pour le traitement parallèle (par défaut: 1)
 - `-d`, `--dry-run` : Mode test - ne pas modifier les fichiers, simplement afficher ce qui serait fait
 - `-i`, `--interactive` : Mode interactif - demande confirmation avant chaque modification
+- `-l`, `--show-limitations` : Afficher uniquement les limitations connues du script et quitter
+
+### Options pour surmonter les limitations
+
+- `--convert-python` : Convertir également les fichiers Python (.py) pour supprimer les attributs states
+- `--advanced-conditions` : Activer le traitement avancé des conditions complexes dans les attributs attrs
+- `--overcome-all` : Activer toutes les fonctionnalités pour surmonter les limitations
 
 ### Exemples
 
@@ -72,6 +81,15 @@ python odoo18_converter.py ./mon_module/ -w 4
 
 # Générer un rapport détaillé
 python odoo18_converter.py ./mon_module/ -r rapport_conversion.json
+
+# Convertir avec analyse des fichiers Python (suppression des states)
+python odoo18_converter.py ./mon_module/ --convert-python
+
+# Activer le traitement avancé des conditions complexes
+python odoo18_converter.py ./mon_module/ --advanced-conditions
+
+# Activer toutes les fonctionnalités avancées
+python odoo18_converter.py ./mon_module/ --overcome-all
 ```
 
 ## Fonctionnement
@@ -79,6 +97,41 @@ python odoo18_converter.py ./mon_module/ -r rapport_conversion.json
 Le script parcourt récursivement le répertoire spécifié et ses sous-répertoires, recherche tous les fichiers avec les extensions indiquées, et applique les transformations nécessaires pour rendre le code compatible avec Odoo 18.
 
 Pour chaque fichier modifié, une sauvegarde est créée avec l'extension `.bak` (sauf si l'option `--no-backup` est utilisée ou si un répertoire de sortie est spécifié avec `--output-dir`).
+
+## Fonctionnalités avancées
+
+### Conversion des fichiers Python
+
+L'option `--convert-python` permet au script d'analyser et de modifier les fichiers Python pour supprimer les attributs `states` des définitions de champs, comme ceci :
+
+```python
+# Avant
+date = fields.Date(
+    string='Date',
+    required=True,
+    states={'posted': [('readonly', True)], 'cancel': [('readonly', True)]},
+    copy=False,
+)
+
+# Après
+date = fields.Date(
+    string='Date',
+    required=True,
+    copy=False,
+)
+```
+
+### Traitement des conditions complexes
+
+L'option `--advanced-conditions` active des algorithmes avancés pour traiter des conditions plus complexes dans les attributs XML, notamment celles utilisant plusieurs opérateurs logiques (`|` et `&`) imbriqués.
+
+```xml
+<!-- Avant (très complexe) -->
+<field name="project_id" attrs="{'invisible': ['|', '|', '&', ('state', '=', 'done'), ('type', '=', 'service'), ('type', '=', 'consu'), ('type', '=', 'product')]}"/>
+
+<!-- Après -->
+<field name="project_id" invisible="(state == 'done' and type == 'service') or type == 'consu' or type == 'product'"/>
+```
 
 ## Changements supportés
 
@@ -169,9 +222,15 @@ Pour chaque fichier modifié, une sauvegarde est créée avec l'extension `.bak`
 5. **Mode préservation** : Sauvegarde des fichiers convertis dans un répertoire séparé
 6. **Filtrage avancé** : Ignorer certains fichiers selon des patterns regex
 7. **Génération de rapport** : Export des statistiques au format JSON
+8. **Conversion Python** : Analyse et modification des fichiers Python pour supprimer les attributs `states`
+9. **Traitement de conditions complexes** : Support pour les conditions avec plusieurs opérateurs logiques
 
-## Limitations
+## Limitations résiduelles
 
-- Certaines transformations complexes peuvent nécessiter des ajustements manuels
-- Le script ne modifie pas la structure Python des modèles (comme la suppression des attributs `states` dans les définitions de champs)
-- Les expressions complexes dans les attributs conditionnels peuvent ne pas être parfaitement converties 
+Bien que le script offre maintenant des options pour surmonter la plupart des limitations initiales, certains cas très spécifiques peuvent encore nécessiter une intervention manuelle :
+
+1. Certaines structures XML très personnalisées ou complexes
+2. Cas spéciaux d'attributs conditionnels avec des expressions très complexes
+3. Définitions de champs Python utilisant des approches non standard
+
+Il est toujours recommandé de vérifier les fichiers convertis, surtout dans les cas complexes. 

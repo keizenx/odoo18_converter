@@ -7,6 +7,7 @@ import sys
 import time
 import argparse
 import logging
+import ast
 from lxml import etree
 import shutil
 from pathlib import Path
@@ -30,7 +31,8 @@ logger = logging.getLogger('odoo18_converter')
 class Odoo18Converter:
     def __init__(self, source_dir, output_dir=None, backup=True, verbose=False, 
                 extensions=None, skip_patterns=None, report_file=None, 
-                workers=1, dry_run=False, interactive=False):
+                workers=1, dry_run=False, interactive=False, 
+                convert_python=False, advanced_conditions=False):
         self.source_dir = source_dir
         self.output_dir = output_dir
         self.backup = backup
@@ -41,6 +43,8 @@ class Odoo18Converter:
         self.workers = max(1, min(workers, os.cpu_count() or 1))
         self.dry_run = dry_run
         self.interactive = interactive
+        self.convert_python = convert_python
+        self.advanced_conditions = advanced_conditions
         
         # Statistiques
         self.stats = {
@@ -54,7 +58,9 @@ class Odoo18Converter:
                 'states_conversion': 0,
                 'daterange_update': 0,
                 'chatter_simplified': 0,
-                'settings_structure': 0
+                'settings_structure': 0,
+                'python_states_removed': 0,
+                'complex_conditions': 0
             },
             'start_time': datetime.now(),
             'end_time': None,
@@ -116,20 +122,35 @@ class Odoo18Converter:
         """Parcourir tous les fichiers et appliquer les conversions"""
         self.print_banner()
         
-        self.stats['start_time'] = datetime.now()
-        print(f"📋 {Fore.CYAN}Recherche de fichiers {', '.join(self.extensions)} dans {self.source_dir}...{Style.RESET_ALL}")
+        # Afficher les limitations du script (si pas surmontées)
+        if not self.convert_python and not self.advanced_conditions and not self.dry_run:
+            self.show_limitations()
+        else:
+            self.show_advanced_features()
         
-        # Collecter tous les fichiers XML à traiter
+        self.stats['start_time'] = datetime.now()
+        
+        # Déterminer les types de fichiers à traiter
+        all_extensions = list(self.extensions)
+        if self.convert_python:
+            if '.py' not in all_extensions:
+                all_extensions.append('.py')
+        
+        print(f"📋 {Fore.CYAN}Recherche de fichiers {', '.join(all_extensions)} dans {self.source_dir}...{Style.RESET_ALL}")
+        
+        # Collecter tous les fichiers à traiter
         files_to_process = []
         for root, _, files in os.walk(self.source_dir):
             for file in files:
-                if any(file.endswith(ext) for ext in self.extensions):
-                    file_path = os.path.join(root, file)
-                    if not self.should_skip_file(file_path):
-                        files_to_process.append(file_path)
-                    else:
-                        self.stats['files_skipped'] += 1
-                        self.log(f"Fichier ignoré selon les patterns: {file_path}", level='debug')
+                file_path = os.path.join(root, file)
+                file_ext = os.path.splitext(file)[1].lower()
+                
+                # Traiter selon le type de fichier
+                if file_ext in all_extensions and not self.should_skip_file(file_path):
+                    files_to_process.append((file_path, file_ext))
+                else:
+                    self.stats['files_skipped'] += 1
+                    self.log(f"Fichier ignoré selon les patterns ou extensions: {file_path}", level='debug')
         
         total_files = len(files_to_process)
         print(f"🔍 {Fore.CYAN}Trouvé {total_files} fichier(s) à traiter{Style.RESET_ALL}")
@@ -142,7 +163,7 @@ class Odoo18Converter:
         if self.workers > 1 and total_files > 1:
             print(f"⚙️ {Fore.CYAN}Traitement en parallèle avec {self.workers} workers{Style.RESET_ALL}")
             with concurrent.futures.ProcessPoolExecutor(max_workers=self.workers) as executor:
-                results = list(executor.map(self.convert_file, files_to_process))
+                results = list(executor.map(self._process_file_wrapper, files_to_process))
             
             # Mettre à jour les statistiques
             for result in results:
@@ -150,10 +171,10 @@ class Odoo18Converter:
                     self.update_stats(result)
         else:
             print(f"⚙️ {Fore.CYAN}Traitement séquentiel des fichiers{Style.RESET_ALL}")
-            for i, file_path in enumerate(files_to_process):
+            for i, (file_path, file_ext) in enumerate(files_to_process):
                 progress = f"[{i+1}/{total_files}]"
                 print(f"{progress} Traitement de {file_path}...", end="\r")
-                result = self.convert_file(file_path)
+                result = self._process_file(file_path, file_ext)
                 self.update_stats(result)
                 
         # Afficher le rapport final
@@ -164,18 +185,133 @@ class Odoo18Converter:
         # Sauvegarder le rapport si demandé
         if self.report_file:
             self.save_report()
+            
+        # Rappeler les limitations à la fin (si pas surmontées)
+        if not self.convert_python and not self.advanced_conditions:
+            self.show_limitations()
+    
+    def _process_file_wrapper(self, args):
+        """Wrapper pour permettre l'utilisation avec map() en parallèle"""
+        file_path, file_ext = args
+        return self._process_file(file_path, file_ext)
+        
+    def _process_file(self, file_path, file_ext):
+        """Traite un fichier selon son extension"""
+        if file_ext == '.py':
+            return self.convert_python_file(file_path)
+        else:
+            return self.convert_file(file_path)
 
-    def update_stats(self, result):
-        """Met à jour les statistiques avec le résultat d'une conversion"""
-        if result:
-            for key, value in result.items():
-                if key in self.stats:
-                    if isinstance(value, dict):
-                        for subkey, subvalue in value.items():
-                            if subkey in self.stats[key]:
-                                self.stats[key][subkey] += subvalue
-                    else:
-                        self.stats[key] += value
+    def show_advanced_features(self):
+        """Afficher les fonctionnalités avancées activées"""
+        features = []
+        if self.convert_python:
+            features.append("✅ Conversion des attributs 'states' dans les modèles Python")
+        if self.advanced_conditions:
+            features.append("✅ Traitement avancé des conditions complexes")
+            
+        if not features:
+            return
+            
+        message = f"""
+{Fore.GREEN}╔══════════════════════════════════════════════════════════╗
+║ {Fore.WHITE}              FONCTIONNALITÉS AVANCÉES                  {Fore.GREEN}║
+╠══════════════════════════════════════════════════════════╣
+"""
+        for i, feature in enumerate(features):
+            message += f"║ {Fore.WHITE}{feature}{Fore.GREEN}{' ' * (55 - len(feature))}║\n"
+            
+        message += f"""╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+"""
+        print(message)
+
+    def convert_python_file(self, file_path):
+        """Convertir un fichier Python pour Odoo 18"""
+        file_stats = {
+            'files_processed': 1,
+            'files_changed': 0,
+            'files_error': 0,
+            'changes': {
+                'tree_to_list': 0,
+                'attrs_conversion': 0,
+                'states_conversion': 0,
+                'daterange_update': 0,
+                'chatter_simplified': 0,
+                'settings_structure': 0,
+                'python_states_removed': 0,
+                'complex_conditions': 0
+            }
+        }
+        
+        try:
+            # Déterminer le chemin de sortie
+            if self.output_dir:
+                rel_path = os.path.relpath(file_path, self.source_dir)
+                out_path = os.path.join(self.output_dir, rel_path)
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            else:
+                out_path = file_path
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Sauvegarde du fichier original si demandé
+            if self.backup and not self.dry_run and self.output_dir is None:
+                backup_path = f"{file_path}.bak"
+                shutil.copy2(file_path, backup_path)
+            
+            # Analyser et modifier le code Python
+            new_content, state_changes = self.process_python_code(content)
+            file_stats['changes']['python_states_removed'] = state_changes
+            
+            # Si des changements ont été effectués, sauvegarder le fichier
+            if new_content != content:
+                file_stats['files_changed'] = 1
+                if not self.dry_run:
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                self.log(f"Fichier Python mis à jour: {out_path}", level='success')
+            else:
+                self.log(f"Aucun changement nécessaire dans le fichier Python: {file_path}", level='debug')
+                
+            return file_stats
+                
+        except Exception as e:
+            self.log(f"Erreur lors du traitement du fichier Python {file_path}: {str(e)}", level='error')
+            file_stats['files_error'] = 1
+            return file_stats
+
+    def process_python_code(self, content):
+        """Analyser et modifier le code Python pour Odoo 18"""
+        # Compteur pour les changements
+        state_changes = 0
+        
+        # Pattern pour les attributs states dans les définitions de champs
+        states_pattern = r'states\s*=\s*{([^}]*)}'
+        
+        def remove_states_param(match):
+            nonlocal state_changes
+            state_changes += 1
+            # On enlève juste le paramètre states
+            return ""
+        
+        # Remplacer les attributs states dans les définitions de champs
+        new_content = re.sub(r',\s*states\s*=\s*{[^}]*}', remove_states_param, content)
+        
+        # Recherche et traitement plus avancé si nécessaire avec l'AST
+        if new_content == content:
+            try:
+                # Parse le code avec AST
+                tree = ast.parse(content)
+                
+                # TODO: Implémentation plus avancée avec manipulation AST
+                # Cette partie nécessiterait une analyse plus poussée de l'arbre syntaxique
+                # pour identifier les définitions de champs et modifier leurs paramètres
+                
+            except Exception as e:
+                self.log(f"Erreur lors de l'analyse AST: {str(e)}", level='warning')
+        
+        return new_content, state_changes
 
     def convert_file(self, file_path):
         """Convertir un fichier XML"""
@@ -250,9 +386,10 @@ class Odoo18Converter:
         change_stats['tree_to_list'] = tree_count
         
         # 2. Convertir les attributs attrs et states
-        content, attrs_count, states_count = self.convert_attrs(content)
+        content, attrs_count, states_count, complex_count = self.convert_attrs(content)
         change_stats['attrs_conversion'] = attrs_count
         change_stats['states_conversion'] = states_count
+        change_stats['complex_conditions'] = complex_count
         
         # 3. Mettre à jour le widget daterange
         content, daterange_count = self.update_daterange_widget(content)
@@ -286,14 +423,26 @@ class Odoo18Converter:
         """Convertir les attributs attrs en conditions directes"""
         attrs_count = 0
         states_count = 0
+        complex_count = 0
         
         # Trouver tous les attributs attrs avec leurs valeurs
         attrs_pattern = r'attrs="{\'(invisible|readonly|required)\': \[(.*?)\]}"'
         
         def replace_attrs(match):
-            nonlocal attrs_count
+            nonlocal attrs_count, complex_count
             attr_type = match.group(1)
             conditions = match.group(2)
+            
+            # Mode avancé pour les conditions complexes
+            if self.advanced_conditions and ('|' in conditions or '&' in conditions):
+                try:
+                    # Tenter de convertir des conditions complexes avec opérateurs | et &
+                    converted = self._convert_complex_condition(conditions, attr_type)
+                    if converted:
+                        complex_count += 1
+                        return converted
+                except Exception as e:
+                    self.log(f"Erreur lors de la conversion complexe: {conditions}. Erreur: {str(e)}", level='warning')
             
             # Traiter les conditions OR (|)
             if conditions.startswith("'|',"):
@@ -351,7 +500,7 @@ class Odoo18Converter:
         
         content = re.sub(states_pattern, replace_states, content)
         
-        return content, attrs_count, states_count
+        return content, attrs_count, states_count, complex_count
 
     def _format_condition(self, field, operator, value):
         """Formater une condition pour la nouvelle syntaxe"""
@@ -486,11 +635,60 @@ class Odoo18Converter:
         
         return content, settings_count
 
+    def _convert_complex_condition(self, condition, attr_type):
+        """Convertir des conditions complexes avec plusieurs opérateurs OR et AND"""
+        # Cette méthode est une ébauche pour traiter des cas plus complexes
+        # Il faudrait implémenter un véritable parseur/évaluateur de conditions Odoo
+
+        # Exemple simplifié pour quelques cas courants
+        # 1. Plusieurs OR consécutifs: '|', '|', cond1, cond2, cond3
+        if condition.startswith("'|',") and "'|'," in condition[4:]:
+            try:
+                # Compter les opérateurs OR
+                or_count = 0
+                idx = 0
+                while True:
+                    next_idx = condition.find("'|',", idx)
+                    if next_idx == -1:
+                        break
+                    or_count += 1
+                    idx = next_idx + 4
+                
+                # Extraire toutes les conditions
+                cond_parts = re.findall(r'\(\'(.*?)\',\s*\'(.*?)\',\s*([^\)]*)\)', condition)
+                
+                if len(cond_parts) == or_count + 1:
+                    # Formater toutes les conditions
+                    formatted_conditions = []
+                    for part in cond_parts:
+                        formatted_conditions.append(self._format_condition(part[0], part[1], part[2]))
+                    
+                    # Construire l'expression avec OR
+                    return f'{attr_type}="{" or ".join(formatted_conditions)}"'
+            except Exception as e:
+                self.log(f"Erreur traitement condition OR multiple: {condition}. Erreur: {str(e)}", level='warning')
+        
+        # 2. Conditions AND imbriquées dans des OR: '|', cond1, '&', cond2, cond3
+        elif "'|'," in condition and "'&'," in condition:
+            # Ce cas est très complexe et nécessiterait un parser complet
+            # Implémentation simplifiée pour certains cas spécifiques
+            pass
+            
+        # Pas de conversion possible, retourner None
+        return None
+
     def print_report(self):
         """Affiche un rapport détaillé des conversions effectuées"""
         duration = self.stats['duration']
         minutes = int(duration // 60)
         seconds = int(duration % 60)
+        
+        # Ajouter les nouvelles statistiques
+        additional_stats = ""
+        if self.convert_python:
+            additional_stats += f"║ {Fore.WHITE}  - attrs states Python : {self.stats['changes']['python_states_removed']:<5}{Fore.CYAN}                       ║\n"
+        if self.advanced_conditions:
+            additional_stats += f"║ {Fore.WHITE}  - conditions complexes: {self.stats['changes']['complex_conditions']:<5}{Fore.CYAN}                       ║\n"
         
         report = f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
@@ -510,7 +708,7 @@ class Odoo18Converter:
 ║ {Fore.WHITE}  - daterange         : {self.stats['changes']['daterange_update']:<5}{Fore.CYAN}                       ║
 ║ {Fore.WHITE}  - chatter           : {self.stats['changes']['chatter_simplified']:<5}{Fore.CYAN}                       ║
 ║ {Fore.WHITE}  - settings          : {self.stats['changes']['settings_structure']:<5}{Fore.CYAN}                       ║
-╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{additional_stats}╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
 """
         print(report)
         
@@ -578,6 +776,16 @@ def main():
                       help='Mode test: ne pas modifier les fichiers, simplement afficher ce qui serait fait')
     parser.add_argument('-i', '--interactive', action='store_true',
                       help='Mode interactif: demande confirmation avant chaque modification')
+    parser.add_argument('-l', '--show-limitations', action='store_true',
+                      help='Afficher uniquement les limitations connues du script et quitter')
+    
+    # Nouveaux arguments pour surmonter les limitations
+    parser.add_argument('--convert-python', action='store_true',
+                      help='Convertir également les fichiers Python (.py) pour supprimer les attributs states')
+    parser.add_argument('--advanced-conditions', action='store_true', 
+                      help='Activer le traitement avancé des conditions complexes dans les attributs attrs')
+    parser.add_argument('--overcome-all', action='store_true',
+                      help='Activer toutes les fonctionnalités pour surmonter les limitations')
     
     # Personnalisation de l'aide
     if len(sys.argv) == 1:
@@ -585,6 +793,17 @@ def main():
         sys.exit(0)
     
     args = parser.parse_args()
+    
+    # Afficher uniquement les limitations si demandé
+    if args.show_limitations:
+        converter = Odoo18Converter(source_dir=".")
+        converter.show_limitations()
+        return 0
+    
+    # Activer toutes les options si --overcome-all est spécifié
+    if args.overcome_all:
+        args.convert_python = True
+        args.advanced_conditions = True
     
     if not os.path.isdir(args.source_dir):
         print(f"{Fore.RED}Erreur: Le répertoire {args.source_dir} n'existe pas{Style.RESET_ALL}")
@@ -600,7 +819,9 @@ def main():
         report_file=args.report,
         workers=args.workers,
         dry_run=args.dry_run,
-        interactive=args.interactive
+        interactive=args.interactive,
+        convert_python=args.convert_python, 
+        advanced_conditions=args.advanced_conditions
     )
     
     try:
