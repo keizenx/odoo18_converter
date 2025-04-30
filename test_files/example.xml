@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Exemple 1: tree à list -->
+        <record id="view_example_tree" model="ir.ui.view">
+            <field name="name">example.model.tree</field>
+            <field name="model">example.model</field>
+            <field name="arch" type="xml">
+                <list string="Exemples">
+                    <field name="name"/>
+                    <field name="date"/>
+                    <field name="state"/>
+                    <field name="partner_id"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Exemple 2: attrs - condition simple -->
+        <record id="view_example_form" model="ir.ui.view">
+            <field name="name">example.model.form</field>
+            <field name="model">example.model</field>
+            <field name="arch" type="xml">
+                <form string="Exemple">
+                    <header>
+                        <button string="Valider" invisible="state != 'draft'" type="object" name="action_validate"/>
+                        <button string="Annuler" invisible="state != 'confirmed'" type="object" name="action_cancel"/>
+                        <field name="state" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <field name="name" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            <field name="date"/>
+                            <field name="partner_id" attrs="{'invisible': [('state', '=', 'cancelled')]}"/>
+                            <field name="shift_id" attrs="{'invisible': [('shift_schedule', '=', [])]}"/>
+                        </group>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+
+        <!-- Exemple 3: attrs - conditions OR -->
+        <record id="view_example_form2" model="ir.ui.view">
+            <field name="name">example.model.form2</field>
+            <field name="model">example.model</field>
+            <field name="arch" type="xml">
+                <form string="Exemple 2">
+                    <sheet>
+                        <group>
+                            <field name="department_id" invisible="state == 'done' or type == 'internal'"/>
+                            <field name="job_position" readonly="state == 'approved' and user_id != user.id"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Exemple 4: Widget daterange -->
+        <record id="view_date_range_example" model="ir.ui.view">
+            <field name="name">date.range.example</field>
+            <field name="model">date.range.example</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <div>
+                                <field name="start_date" widget="daterange" options="{\'end_date_field\': \'end_date\'}"/>
+                                
+                            </div>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Exemple 5: Configuration settings -->
+        <record id="res_config_settings_view_inherit_example" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.example</field>
+            <field name="model">res.config.settings</field>
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//form" position="inside">
+                   <div class="app_settings_block" data-string="application_settings" string="Application Settings" data-key="key_example">
+                      <h2>Example Settings</h2>
+                      <div class="row mt16 o_settings_container">
+                          <label for="example_setting" string="Example Setting" class="ml-4 mt-4"/>
+                      </div>
+                      <div class="row mt16 o_settings_container" name="example_setting_container">
+                          <field class="ml-4" name="example_setting"/>
+                      </div>
+                      <div class="row mt16 o_settings_container">
+                          <div class="text-muted ml-4">
+                              Description for the example setting.
+                          </div>
+                      </div>
+                   </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo> 
