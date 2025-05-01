@@ -28,6 +28,21 @@ pip install lxml colorama
 
 ## Utilisation
 
+### Mode interactif
+
+Lancez simplement le script sans arguments pour utiliser le mode interactif qui vous guidera pas à pas :
+
+```bash
+python odoo18_converter.py
+```
+
+Ce mode vous demandera successivement :
+1. Le chemin du module Odoo à convertir
+2. Les différentes options de conversion
+3. Une confirmation avant de lancer la conversion
+
+### Mode ligne de commande
+
 ```bash
 python odoo18_converter.py chemin/vers/module [options]
 ```
@@ -55,6 +70,9 @@ python odoo18_converter.py chemin/vers/module [options]
 ### Exemples
 
 ```bash
+# Mode interactif (recommandé pour les nouveaux utilisateurs)
+python odoo18_converter.py
+
 # Convertir tous les fichiers XML d'un module
 python odoo18_converter.py ./mon_module/
 
@@ -132,6 +150,16 @@ L'option `--advanced-conditions` active des algorithmes avancés pour traiter de
 <!-- Après -->
 <field name="project_id" invisible="(state == 'done' and type == 'service') or type == 'consu' or type == 'product'"/>
 ```
+
+## Mode interactif
+
+Le script propose désormais un mode interactif qui guide l'utilisateur pas à pas dans le processus de conversion :
+
+1. **Sélection du répertoire** : Le script demande d'abord le chemin du module Odoo à convertir
+2. **Configuration des options** : Il propose ensuite de configurer les différentes options de conversion
+3. **Confirmation** : Avant de lancer la conversion, un résumé des options est affiché pour confirmation
+
+Ce mode est particulièrement utile pour les utilisateurs qui découvrent l'outil ou qui préfèrent une approche guidée plutôt que de spécifier toutes les options en ligne de commande.
 
 ## Changements supportés
 
@@ -224,6 +252,7 @@ L'option `--advanced-conditions` active des algorithmes avancés pour traiter de
 7. **Génération de rapport** : Export des statistiques au format JSON
 8. **Conversion Python** : Analyse et modification des fichiers Python pour supprimer les attributs `states`
 9. **Traitement de conditions complexes** : Support pour les conditions avec plusieurs opérateurs logiques
+10. **Mode interactif** : Interface guidée pour configurer facilement la conversion
 
 ## Limitations résiduelles
 

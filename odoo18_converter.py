@@ -28,6 +28,184 @@ logging.basicConfig(
 )
 logger = logging.getLogger('odoo18_converter')
 
+class InteractiveMode:
+    """Classe pour gérer le mode interactif de l'application"""
+    def __init__(self):
+        self.source_dir = None
+        self.options = {
+            'output_dir': None,
+            'backup': True,
+            'verbose': False,
+            'extensions': ['.xml'],
+            'skip_patterns': [],
+            'report_file': None,
+            'workers': 1,
+            'dry_run': False,
+            'interactive': False,
+            'convert_python': False,
+            'advanced_conditions': False
+        }
+    
+    def print_header(self):
+        """Affiche l'en-tête du mode interactif"""
+        header = f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║                                                                     ║
+║  {Fore.YELLOW}Odoo 18 - Convertisseur de Syntaxe - Mode Interactif{Fore.CYAN}║
+║  {Fore.WHITE}Version 1.2.0{Fore.CYAN}                                ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+
+Ce mode vous guide étape par étape dans le processus de conversion.
+Vous pouvez quitter à tout moment en appuyant sur Ctrl+C.
+
+"""
+        print(header)
+    
+    def prompt_source_dir(self):
+        """Demande à l'utilisateur le répertoire source"""
+        while True:
+            source_dir = input(f"{Fore.GREEN}1. Entrez le chemin du module Odoo à convertir :{Style.RESET_ALL} ")
+            if not source_dir:
+                print(f"{Fore.RED}Erreur: Le chemin ne peut pas être vide.{Style.RESET_ALL}")
+                continue
+                
+            # Vérifier si le répertoire existe
+            if os.path.isdir(source_dir):
+                self.source_dir = source_dir
+                return True
+            else:
+                create_dir = input(f"{Fore.YELLOW}Le répertoire n'existe pas. Voulez-vous le créer ? (o/n) :{Style.RESET_ALL} ")
+                if create_dir.lower() in ['o', 'oui', 'y', 'yes']:
+                    try:
+                        os.makedirs(source_dir, exist_ok=True)
+                        self.source_dir = source_dir
+                        return True
+                    except Exception as e:
+                        print(f"{Fore.RED}Erreur lors de la création du répertoire: {str(e)}{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.YELLOW}Veuillez entrer un chemin valide.{Style.RESET_ALL}")
+    
+    def prompt_options(self):
+        """Demande à l'utilisateur les options de conversion"""
+        # Choisir le type de conversion
+        print(f"\n{Fore.GREEN}2. Choisissez les options de conversion :{Style.RESET_ALL}")
+        
+        # Option pour la conversion Python
+        convert_python = input(f"{Fore.CYAN}   Convertir les fichiers Python (.py) ? (o/n) [n]: {Style.RESET_ALL}")
+        self.options['convert_python'] = convert_python.lower() in ['o', 'oui', 'y', 'yes']
+        
+        # Option pour le traitement avancé des conditions
+        advanced_conditions = input(f"{Fore.CYAN}   Activer le traitement avancé des conditions ? (o/n) [n]: {Style.RESET_ALL}")
+        self.options['advanced_conditions'] = advanced_conditions.lower() in ['o', 'oui', 'y', 'yes']
+        
+        # Option pour la sauvegarde
+        backup = input(f"{Fore.CYAN}   Créer des sauvegardes des fichiers originaux ? (o/n) [o]: {Style.RESET_ALL}")
+        self.options['backup'] = backup.lower() not in ['n', 'non', 'no']
+        
+        # Option pour le mode verbeux
+        verbose = input(f"{Fore.CYAN}   Activer le mode verbeux ? (o/n) [n]: {Style.RESET_ALL}")
+        self.options['verbose'] = verbose.lower() in ['o', 'oui', 'y', 'yes']
+        
+        # Option pour le répertoire de sortie
+        output_dir = input(f"{Fore.CYAN}   Répertoire de sortie (vide pour modifier les fichiers en place): {Style.RESET_ALL}")
+        if output_dir:
+            self.options['output_dir'] = output_dir
+            # Créer le répertoire de sortie s'il n'existe pas
+            if not os.path.isdir(output_dir):
+                try:
+                    os.makedirs(output_dir, exist_ok=True)
+                except Exception as e:
+                    print(f"{Fore.RED}Erreur lors de la création du répertoire de sortie: {str(e)}{Style.RESET_ALL}")
+                    return False
+        
+        # Option pour le nombre de workers
+        workers = input(f"{Fore.CYAN}   Nombre de processus parallèles (1-{os.cpu_count() or 4}) [1]: {Style.RESET_ALL}")
+        if workers.isdigit() and 1 <= int(workers) <= (os.cpu_count() or 4):
+            self.options['workers'] = int(workers)
+        
+        # Option pour le mode test
+        dry_run = input(f"{Fore.CYAN}   Mode test (aucune modification réelle) ? (o/n) [n]: {Style.RESET_ALL}")
+        self.options['dry_run'] = dry_run.lower() in ['o', 'oui', 'y', 'yes']
+        
+        # Option pour les extensions
+        extensions = input(f"{Fore.CYAN}   Extensions à traiter (séparées par des espaces) [.xml]: {Style.RESET_ALL}")
+        if extensions:
+            self.options['extensions'] = [ext if ext.startswith('.') else f'.{ext}' for ext in extensions.split()]
+        
+        # Option pour le rapport
+        report = input(f"{Fore.CYAN}   Générer un rapport (chemin du fichier, vide pour aucun rapport): {Style.RESET_ALL}")
+        if report:
+            self.options['report_file'] = report
+        
+        return True
+    
+    def confirm_conversion(self):
+        """Demande à l'utilisateur de confirmer la conversion"""
+        print(f"\n{Fore.GREEN}3. Résumé des options :{Style.RESET_ALL}")
+        print(f"   - Module source: {self.source_dir}")
+        
+        if self.options['output_dir']:
+            print(f"   - Répertoire de sortie: {self.options['output_dir']}")
+        else:
+            print(f"   - Mode: Modification en place")
+            
+        if self.options['backup']:
+            print(f"   - Sauvegarde: Oui (.bak)")
+        else:
+            print(f"   - Sauvegarde: Non")
+            
+        if self.options['convert_python']:
+            print(f"   - Conversion Python: Oui")
+        else:
+            print(f"   - Conversion Python: Non")
+            
+        if self.options['advanced_conditions']:
+            print(f"   - Traitement conditions avancées: Oui")
+        else:
+            print(f"   - Traitement conditions avancées: Non")
+            
+        if self.options['dry_run']:
+            print(f"   - Mode test: Oui (aucune modification réelle)")
+        else:
+            print(f"   - Mode test: Non")
+            
+        print(f"   - Extensions: {', '.join(self.options['extensions'])}")
+        print(f"   - Workers: {self.options['workers']}")
+        
+        if self.options['report_file']:
+            print(f"   - Rapport: {self.options['report_file']}")
+        else:
+            print(f"   - Rapport: Non")
+            
+        confirm = input(f"\n{Fore.YELLOW}Confirmer la conversion ? (o/n) [o]: {Style.RESET_ALL}")
+        return confirm.lower() not in ['n', 'non', 'no']
+    
+    def run(self):
+        """Exécute le mode interactif"""
+        try:
+            self.print_header()
+            
+            if not self.prompt_source_dir():
+                return None
+                
+            if not self.prompt_options():
+                return None
+                
+            if not self.confirm_conversion():
+                print(f"{Fore.YELLOW}Conversion annulée.{Style.RESET_ALL}")
+                return None
+                
+            # Retourner les options pour exécution
+            return {
+                'source_dir': self.source_dir,
+                **self.options
+            }
+            
+        except KeyboardInterrupt:
+            print(f"\n{Fore.YELLOW}Opération annulée par l'utilisateur.{Style.RESET_ALL}")
+            return None
+
 class Odoo18Converter:
     def __init__(self, source_dir, output_dir=None, backup=True, verbose=False, 
                 extensions=None, skip_patterns=None, report_file=None, 
@@ -104,7 +282,7 @@ class Odoo18Converter:
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
 ║  {Fore.YELLOW}Odoo 18 - Convertisseur de Syntaxe{Fore.CYAN}                     ║
-║  {Fore.WHITE}Version 1.1.0{Fore.CYAN}                                         ║
+║  {Fore.WHITE}Version 1.2.0{Fore.CYAN}                                         ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
 """
@@ -140,20 +318,112 @@ class Odoo18Converter:
         
         # Collecter tous les fichiers à traiter
         files_to_process = []
-        for root, _, files in os.walk(self.source_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
-                file_ext = os.path.splitext(file)[1].lower()
-                
-                # Traiter selon le type de fichier
-                if file_ext in all_extensions and not self.should_skip_file(file_path):
+        total_files_found = 0
+        
+        # Dossiers standards d'Odoo à vérifier en priorité (liste plus complète)
+        odoo_standard_dirs = [
+            'views', 'security', 'data', 'wizard', 'report', 
+            'static/src/xml', 'static/src/js', 'static/description',
+            'controllers', 'demo', 'i18n', 'templates', 'tests'
+        ]
+        
+        # Fonction pour ajouter un fichier à la liste de traitement
+        def process_file_path(file_path):
+            nonlocal total_files_found
+            total_files_found += 1
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            # Traiter selon le type de fichier
+            if file_ext in all_extensions:
+                if not self.should_skip_file(file_path):
                     files_to_process.append((file_path, file_ext))
+                    return True
                 else:
                     self.stats['files_skipped'] += 1
-                    self.log(f"Fichier ignoré selon les patterns ou extensions: {file_path}", level='debug')
+                    self.log(f"Fichier ignoré selon les patterns: {file_path}", level='debug')
+            else:
+                # Fichier avec une extension non traitée
+                self.stats['files_skipped'] += 1
+                self.log(f"Fichier ignoré (extension non traitée): {file_path}", level='debug')
+            return False
+        
+        # On s'assure que le répertoire source existe
+        if not os.path.exists(self.source_dir):
+            self.log(f"Le répertoire source {self.source_dir} n'existe pas.", level='error')
+            return
+            
+        # On fait une recherche exhaustive de tous les fichiers XML et Python dans le répertoire
+        xml_files_found = 0
+        py_files_found = 0
+        
+        # D'abord, vérifier chaque dossier standard Odoo
+        for standard_dir in odoo_standard_dirs:
+            standard_path = os.path.join(self.source_dir, standard_dir)
+            if os.path.isdir(standard_path):
+                self.log(f"Vérification du dossier standard Odoo: {standard_dir}", level='info')
+                for root, _, files in os.walk(standard_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        file_ext = os.path.splitext(file)[1].lower()
+                        if file_ext == '.xml':
+                            xml_files_found += 1
+                        elif file_ext == '.py':
+                            py_files_found += 1
+                        process_file_path(file_path)
+        
+        # Ensuite, parcourir tous les autres fichiers dans le répertoire source
+        # pour trouver des fichiers XML ou Python qui pourraient être dans des emplacements non standards
+        processed_paths = set()
+        for root, dirs, files in os.walk(self.source_dir):
+            # Vérifier si on est dans un dossier standard déjà traité
+            is_standard_subdir = False
+            for standard_dir in odoo_standard_dirs:
+                standard_path = os.path.join(self.source_dir, standard_dir)
+                if root.startswith(standard_path):
+                    is_standard_subdir = True
+                    break
+            
+            # Si c'est un sous-dossier standard déjà traité, on le saute
+            if is_standard_subdir:
+                continue
+                
+            # Traiter les fichiers de ce dossier
+            for file in files:
+                file_path = os.path.join(root, file)
+                
+                # Éviter de traiter deux fois le même fichier
+                if file_path in processed_paths:
+                    continue
+                processed_paths.add(file_path)
+                
+                # Compter les fichiers par type
+                file_ext = os.path.splitext(file)[1].lower()
+                if file_ext == '.xml':
+                    xml_files_found += 1
+                elif file_ext == '.py':
+                    py_files_found += 1
+                
+                # Ajouter à la liste de traitement si c'est un type valide
+                process_file_path(file_path)
+        
+        # Afficher des statistiques sur les fichiers trouvés
+        self.log(f"Fichiers XML trouvés: {xml_files_found}", level='info')
+        if self.convert_python:
+            self.log(f"Fichiers Python trouvés: {py_files_found}", level='info')
         
         total_files = len(files_to_process)
+        self.log(f"Total des fichiers trouvés: {total_files_found}", level='info')
+        self.log(f"Fichiers à traiter: {total_files}", level='info')
+        self.log(f"Fichiers ignorés: {self.stats['files_skipped']}", level='info')
         print(f"🔍 {Fore.CYAN}Trouvé {total_files} fichier(s) à traiter{Style.RESET_ALL}")
+        
+        # Afficher les fichiers qui seront traités en mode verbeux
+        if self.verbose:
+            print(f"\n{Fore.CYAN}Liste des fichiers à traiter:{Style.RESET_ALL}")
+            for i, (file_path, _) in enumerate(files_to_process):
+                rel_path = os.path.relpath(file_path, self.source_dir)
+                print(f"  {Fore.WHITE}{i+1}. {rel_path}{Style.RESET_ALL}")
+            print("")
         
         if self.dry_run:
             print(f"\n{Fore.YELLOW}Mode test activé - aucune modification ne sera appliquée{Style.RESET_ALL}")
@@ -176,6 +446,9 @@ class Odoo18Converter:
                 print(f"{progress} Traitement de {file_path}...", end="\r")
                 result = self._process_file(file_path, file_ext)
                 self.update_stats(result)
+                
+        # Mettre à jour le nombre total de fichiers traités
+        self.stats['files_processed'] = total_files
                 
         # Afficher le rapport final
         self.stats['end_time'] = datetime.now()
@@ -325,7 +598,9 @@ class Odoo18Converter:
                 'states_conversion': 0,
                 'daterange_update': 0,
                 'chatter_simplified': 0,
-                'settings_structure': 0
+                'settings_structure': 0,
+                'python_states_removed': 0,
+                'complex_conditions': 0
             }
         }
         
@@ -359,7 +634,16 @@ class Odoo18Converter:
                 if not self.dry_run:
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(new_content)
-                self.log(f"Fichier mis à jour: {out_path}", level='success')
+                    self.log(f"Fichier mis à jour: {out_path}", level='success')
+                
+                # Afficher les détails des changements en mode verbeux
+                if self.verbose:
+                    changes_made = sum(change_stats.values())
+                    if changes_made > 0:
+                        self.log(f"Changements effectués dans {file_path}:", level='info')
+                        for change_type, count in change_stats.items():
+                            if count > 0:
+                                self.log(f"  - {change_type}: {count}", level='info')
             else:
                 self.log(f"Aucun changement nécessaire: {file_path}", level='debug')
                 
@@ -372,14 +656,39 @@ class Odoo18Converter:
 
     def apply_transformations(self, content, file_path):
         """Appliquer toutes les transformations"""
+        original_content = content
         change_stats = {
             'tree_to_list': 0,
             'attrs_conversion': 0,
             'states_conversion': 0,
             'daterange_update': 0,
             'chatter_simplified': 0,
-            'settings_structure': 0
+            'settings_structure': 0,
+            'python_states_removed': 0,
+            'complex_conditions': 0
         }
+        
+        # Essayer d'analyser le fichier comme du XML valide
+        is_valid_xml = False
+        try:
+            # Vérifier si c'est un XML bien formé
+            parser = etree.XMLParser(recover=True)
+            root = etree.fromstring("<odoo_root>" + content + "</odoo_root>", parser)
+            is_valid_xml = True
+            self.log(f"Fichier analysé comme XML valide", level='debug')
+        except Exception as e:
+            self.log(f"Le fichier n'est pas un XML bien formé, traitement en mode texte: {str(e)}", level='debug')
+        
+        # Compter le nombre de motifs avant les transformations pour vérification
+        tree_count_before = content.count('<tree')
+        attrs_count_before = len(re.findall(r'attrs="{\'(invisible|readonly|required)\':', content))
+        states_count_before = len(re.findall(r'states="([^"]*)"', content))
+        chatter_count_before = content.count('<div class="oe_chatter">')
+        daterange_count_before = len(re.findall(r'widget="daterange"', content))
+        
+        # Log des comptages initiaux en mode verbeux
+        if self.verbose:
+            self.log(f"Comptage initial - tree: {tree_count_before}, attrs: {attrs_count_before}, states: {states_count_before}, chatter: {chatter_count_before}, daterange: {daterange_count_before}", level='debug')
         
         # 1. Convertir tree en list
         content, tree_count = self.convert_tree_to_list(content)
@@ -400,8 +709,34 @@ class Odoo18Converter:
         change_stats['chatter_simplified'] = chatter_count
         
         # 5. Convertir la structure des res.config
-        content, settings_count = self.convert_settings_structure(content)
-        change_stats['settings_structure'] = settings_count
+        # En mode XML (plus précis) si le fichier est un XML valide, sinon en mode texte
+        if is_valid_xml and '<app_settings_block' in content or 'data-key=' in content:
+            content, settings_count = self.convert_settings_structure(content)
+            change_stats['settings_structure'] = settings_count
+        
+        # 6. Vérification finale pour s'assurer que toutes les transformations ont été effectuées
+        remaining_tree = content.count('<tree')
+        if remaining_tree > 0:
+            self.log(f"Attention: {remaining_tree} balises tree n'ont pas été converties. Tentative supplémentaire...", level='warning')
+            # Tenter une approche plus agressive si des balises tree restent
+            content = content.replace('<tree', '<list').replace('</tree>', '</list>')
+            tree_count += remaining_tree - content.count('<tree')
+            change_stats['tree_to_list'] = tree_count
+            
+            # Vérification finale
+            final_remaining = content.count('<tree')
+            if final_remaining > 0:
+                self.log(f"Il reste encore {final_remaining} balises tree non converties dans {file_path}", level='warning')
+        
+        # Vérification et log pour le débogage
+        if original_content != content:
+            # Fichier modifié, vérifier quels types de modifications
+            self.log(f"Modifications appliquées à {file_path}:", level='debug')
+            for key, value in change_stats.items():
+                if value > 0:
+                    self.log(f"  - {key}: {value}", level='debug')
+        else:
+            self.log(f"Aucune modification nécessaire pour {file_path}", level='debug')
             
         return content, change_stats
 
@@ -410,14 +745,40 @@ class Odoo18Converter:
         # Compter le nombre de remplacements pour le rapport
         tree_count_before = content.count('<tree')
         
+        # Expression régulière plus précise pour détecter les balises tree
+        tree_pattern = re.compile(r'<tree(\s+[^>]*>|>)')
+        matches = tree_pattern.findall(content)
+        real_tree_count = len(matches)
+        
+        if real_tree_count != tree_count_before:
+            self.log(f"Détection différente: simple count {tree_count_before}, regex {real_tree_count}", level='debug')
+            # Utiliser le comptage le plus précis
+            tree_count_before = real_tree_count
+        
         # Conversion de <tree> à <list>
-        content = re.sub(r'<tree', '<list', content)
-        content = re.sub(r'</tree>', '</list>', content)
+        content_new = re.sub(r'<tree(\s|>)', r'<list\1', content)
+        content_new = re.sub(r'</tree>', '</list>', content_new)
         
-        # Compter les changements
-        tree_count = content.count('<list') - (tree_count_before - content.count('<tree'))
+        # Vérifier si toutes les balises ont été converties
+        remaining_trees = content_new.count('<tree')
+        if remaining_trees > 0:
+            self.log(f"Attention: {remaining_trees} balises tree n'ont pas été converties correctement", level='warning')
+            
+            # Tentative de conversion plus agressive
+            content_new = re.sub(r'<tree', r'<list', content_new)
+            content_new = re.sub(r'</tree>', r'</list>', content_new)
+            
+            # Vérifier à nouveau
+            still_remaining = content_new.count('<tree')
+            if still_remaining > 0:
+                self.log(f"Il reste toujours {still_remaining} balises tree non converties", level='warning')
         
-        return content, tree_count
+        # Compter les changements réels
+        tree_count = tree_count_before - remaining_trees
+        
+        self.log(f"Balises tree détectées: {tree_count_before}, converties: {tree_count}", level='debug')
+        
+        return content_new, tree_count
 
     def convert_attrs(self, content):
         """Convertir les attributs attrs en conditions directes"""
@@ -557,14 +918,80 @@ class Odoo18Converter:
         """Simplifier la structure du chatter"""
         chatter_count = 0
         
-        # Pattern pour détecter l'ancien format de chatter
+        # Pattern pour détecter l'ancien format de chatter (standard)
         old_chatter_pattern = r'<div class="oe_chatter">\s*<field name="message_follower_ids" widget="mail_followers"/>\s*<field name="activity_ids" widget="mail_activity"/>\s*<field name="message_ids" widget="mail_thread"/>\s*</div>'
         
-        # Compter les occurrences
-        chatter_count = len(re.findall(old_chatter_pattern, content))
+        # Pattern alternatif avec espaces et ordre différent
+        alt_chatter_pattern1 = r'<div class="oe_chatter">\s*<field name="message_follower_ids"[^>]*widget="mail_followers"[^>]*>\s*</field>\s*<field name="activity_ids"[^>]*widget="mail_activity"[^>]*>\s*</field>\s*<field name="message_ids"[^>]*widget="mail_thread"[^>]*>\s*</field>\s*</div>'
         
-        # Remplacer par la nouvelle syntaxe simplifiée
-        content = re.sub(old_chatter_pattern, '<chatter/>', content)
+        # Pattern alternatif avec ordre différent des champs
+        alt_chatter_pattern2 = r'<div class="oe_chatter">\s*(<field[^>]*widget="mail_followers"[^>]*/>|<field[^>]*widget="mail_followers"[^>]*>\s*</field>)\s*(<field[^>]*widget="mail_thread"[^>]*/>|<field[^>]*widget="mail_thread"[^>]*>\s*</field>)\s*(<field[^>]*widget="mail_activity"[^>]*/>|<field[^>]*widget="mail_activity"[^>]*>\s*</field>)\s*</div>'
+        
+        # Pattern alternatif avec seulement message_ids et followers
+        alt_chatter_pattern3 = r'<div class="oe_chatter">\s*(<field[^>]*widget="mail_followers"[^>]*/>|<field[^>]*widget="mail_followers"[^>]*>\s*</field>)\s*(<field[^>]*widget="mail_thread"[^>]*/>|<field[^>]*widget="mail_thread"[^>]*>\s*</field>)\s*</div>'
+        
+        # Effectuer les conversions avec les différents patterns
+        # 1. Pattern standard
+        matches1 = re.findall(old_chatter_pattern, content)
+        count1 = len(matches1)
+        if count1 > 0:
+            self.log(f"Détecté {count1} structures de chatter standard", level='debug')
+            content = re.sub(old_chatter_pattern, '<chatter/>', content)
+            chatter_count += count1
+            
+        # 2. Pattern alternatif 1
+        matches2 = re.findall(alt_chatter_pattern1, content)
+        count2 = len(matches2)
+        if count2 > 0:
+            self.log(f"Détecté {count2} structures de chatter alternatives (type 1)", level='debug')
+            content = re.sub(alt_chatter_pattern1, '<chatter/>', content)
+            chatter_count += count2
+            
+        # 3. Pattern alternatif 2
+        matches3 = re.findall(alt_chatter_pattern2, content)
+        count3 = len(matches3)
+        if count3 > 0:
+            self.log(f"Détecté {count3} structures de chatter alternatives (type 2)", level='debug')
+            content = re.sub(alt_chatter_pattern2, '<chatter/>', content)
+            chatter_count += count3
+            
+        # 4. Pattern alternatif 3
+        matches4 = re.findall(alt_chatter_pattern3, content)
+        count4 = len(matches4)
+        if count4 > 0:
+            self.log(f"Détecté {count4} structures de chatter alternatives (type 3)", level='debug')
+            content = re.sub(alt_chatter_pattern3, '<chatter/>', content)
+            chatter_count += count4
+            
+        # Détection simple pour cas non couverts par les expressions régulières
+        if '<div class="oe_chatter">' in content and chatter_count == 0:
+            self.log(f"Des structures de chatter ont été détectées mais n'ont pas pu être converties automatiquement", level='warning')
+            # On tente une approche XML avec lxml si possible
+            try:
+                parser = etree.XMLParser(recover=True)
+                root = etree.fromstring("<root>" + content + "</root>", parser)
+                
+                # Trouver toutes les div oe_chatter
+                chatter_divs = root.xpath("//div[@class='oe_chatter']")
+                if chatter_divs:
+                    self.log(f"Tentative de conversion XML pour {len(chatter_divs)} chatters", level='debug')
+                    for chatter_div in chatter_divs:
+                        # Remplacer par un élément chatter
+                        new_chatter = etree.Element("chatter")
+                        parent = chatter_div.getparent()
+                        if parent is not None:
+                            parent.replace(chatter_div, new_chatter)
+                            chatter_count += 1
+                    
+                    # Convertir l'arbre XML modifié en texte
+                    content = etree.tostring(root, pretty_print=True, encoding='unicode')
+                    # Supprimer les tags root ajoutés
+                    content = content.replace("<root>", "").replace("</root>", "")
+            except Exception as e:
+                self.log(f"Erreur lors de la conversion XML des chatters: {str(e)}", level='warning')
+        
+        if chatter_count > 0:
+            self.log(f"Remplacé {chatter_count} structures de chatter par la balise simplifiée", level='debug')
         
         return content, chatter_count
 
@@ -712,6 +1139,9 @@ class Odoo18Converter:
 """
         print(report)
         
+        # Afficher des statistiques détaillées sur les dossiers et extensions
+        self.show_statistics()
+        
         # Afficher un message de réussite ou d'échec
         if self.stats['files_error'] > 0:
             print(f"{Fore.RED}⚠️ Des erreurs ont été rencontrées pendant la conversion.{Style.RESET_ALL}")
@@ -724,6 +1154,86 @@ class Odoo18Converter:
             print(f"\n{Fore.CYAN}📁 Les fichiers convertis ont été sauvegardés dans: {self.output_dir}{Style.RESET_ALL}")
         elif self.backup and not self.dry_run:
             print(f"\n{Fore.CYAN}💾 Des sauvegardes des fichiers originaux ont été créées (.bak){Style.RESET_ALL}")
+
+    def show_statistics(self):
+        """Affiche des statistiques détaillées sur les dossiers et extensions traités"""
+        # Collecter des informations sur les dossiers traités
+        folder_stats = {}
+        extension_stats = {}
+        
+        # Récupérer la liste des dossiers et des extensions traités
+        for root, _, files in os.walk(self.source_dir):
+            rel_path = os.path.relpath(root, self.source_dir)
+            folder_key = rel_path if rel_path != '.' else 'racine'
+            folder_stats[folder_key] = {
+                'total': 0,
+                'xml': 0,
+                'py': 0,
+                'other': 0,
+                'processed': 0,
+                'modified': 0
+            }
+            
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_ext = os.path.splitext(file)[1].lower()
+                
+                # Incrémenter le compteur total pour ce dossier
+                folder_stats[folder_key]['total'] += 1
+                
+                # Compter par extension
+                if file_ext == '.xml':
+                    folder_stats[folder_key]['xml'] += 1
+                elif file_ext == '.py':
+                    folder_stats[folder_key]['py'] += 1
+                else:
+                    folder_stats[folder_key]['other'] += 1
+                
+                # Compter les statistiques globales par extension
+                if file_ext not in extension_stats:
+                    extension_stats[file_ext] = 0
+                extension_stats[file_ext] += 1
+        
+        # Afficher les statistiques par dossier (afficher seulement les plus pertinents)
+        print(f"\n{Fore.CYAN}╔══════════════════════════════════════════════════════════╗")
+        print(f"║ {Fore.YELLOW}           STATISTIQUES DÉTAILLÉES PAR DOSSIER            {Fore.CYAN}║")
+        print(f"╠══════════════════════════════════════════════════════════╣")
+        
+        # Trier les dossiers par nombre de fichiers XML et Python
+        relevant_folders = []
+        for folder, stats in folder_stats.items():
+            relevant_count = stats['xml'] + stats['py']
+            if relevant_count > 0:
+                relevant_folders.append((folder, stats, relevant_count))
+        
+        relevant_folders.sort(key=lambda x: x[2], reverse=True)
+        
+        # Afficher les statistiques des dossiers les plus pertinents
+        for folder, stats, _ in relevant_folders[:10]:  # Afficher les 10 principaux dossiers
+            print(f"║ {Fore.WHITE}{folder[:30]:<30}{Fore.CYAN} │ {Fore.WHITE}XML: {stats['xml']:<3} PY: {stats['py']:<3} Autres: {stats['other']:<3}{Fore.CYAN} ║")
+        
+        if len(relevant_folders) > 10:
+            print(f"║ {Fore.WHITE}... et {len(relevant_folders) - 10} autres dossiers{Fore.CYAN}{' ' * 32}║")
+        
+        # Afficher les statistiques par extension
+        print(f"╠══════════════════════════════════════════════════════════╣")
+        print(f"║ {Fore.YELLOW}          STATISTIQUES DÉTAILLÉES PAR EXTENSION          {Fore.CYAN}║")
+        print(f"╠══════════════════════════════════════════════════════════╣")
+        
+        # Trier les extensions par nombre de fichiers
+        sorted_extensions = sorted(extension_stats.items(), key=lambda x: x[1], reverse=True)
+        
+        for ext, count in sorted_extensions[:10]:  # Afficher les 10 principales extensions
+            if not ext:
+                ext_name = "(sans extension)"
+            else:
+                ext_name = ext
+            print(f"║ {Fore.WHITE}{ext_name:<15}{Fore.CYAN} │ {Fore.WHITE}Fichiers: {count:<5}{Fore.CYAN}{' ' * 27}║")
+        
+        if len(sorted_extensions) > 10:
+            print(f"║ {Fore.WHITE}... et {len(sorted_extensions) - 10} autres extensions{Fore.CYAN}{' ' * 26}║")
+            
+        print(f"╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}")
 
     def save_report(self):
         """Sauvegarde le rapport au format JSON"""
@@ -747,8 +1257,79 @@ class Odoo18Converter:
         except Exception as e:
             print(f"{Fore.RED}❌ Erreur lors de la sauvegarde du rapport: {str(e)}{Style.RESET_ALL}")
 
+    def show_limitations(self):
+        """Afficher les limitations connues du script"""
+        limitations = f"""
+{Fore.YELLOW}╔══════════════════════════════════════════════════════════╗
+║ {Fore.WHITE}                     LIMITATIONS                        {Fore.YELLOW}║
+╠══════════════════════════════════════════════════════════╣
+║ {Fore.WHITE}1. Certaines transformations complexes peuvent nécessiter {Fore.YELLOW}║
+║ {Fore.WHITE}   des ajustements manuels.                              {Fore.YELLOW}║
+║                                                          ║
+║ {Fore.WHITE}2. Le script ne modifie pas la structure Python des       {Fore.YELLOW}║
+║ {Fore.WHITE}   modèles (comme la suppression des attributs states    {Fore.YELLOW}║
+║ {Fore.WHITE}   dans les définitions de champs).                      {Fore.YELLOW}║
+║                                                          ║
+║ {Fore.WHITE}3. Les expressions complexes dans les attributs           {Fore.YELLOW}║
+║ {Fore.WHITE}   conditionnels peuvent ne pas être parfaitement         {Fore.YELLOW}║
+║ {Fore.WHITE}   converties.                                           {Fore.YELLOW}║
+╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+
+{Fore.CYAN}Il est recommandé de vérifier manuellement les fichiers convertis
+avant de les utiliser en production.{Style.RESET_ALL}
+"""
+        print(limitations)
+
+    def update_stats(self, result):
+        """Met à jour les statistiques avec le résultat d'une conversion"""
+        if result:
+            for key, value in result.items():
+                if key in self.stats:
+                    if isinstance(value, dict):
+                        for subkey, subvalue in value.items():
+                            if subkey in self.stats[key]:
+                                self.stats[key][subkey] += subvalue
+                    else:
+                        self.stats[key] += value
+
 
 def main():
+    # Vérifier si des arguments sont fournis
+    if len(sys.argv) == 1:
+        # Pas d'arguments, lancer le mode interactif
+        interactive_mode = InteractiveMode()
+        options = interactive_mode.run()
+        
+        if not options:
+            return 0
+            
+        # Créer le convertisseur avec les options choisies
+        converter = Odoo18Converter(
+            source_dir=options['source_dir'],
+            output_dir=options['output_dir'],
+            backup=options['backup'],
+            verbose=options['verbose'],
+            extensions=options['extensions'],
+            skip_patterns=options['skip_patterns'],
+            report_file=options['report_file'],
+            workers=options['workers'],
+            dry_run=options['dry_run'],
+            interactive=options['interactive'],
+            convert_python=options['convert_python'],
+            advanced_conditions=options['advanced_conditions']
+        )
+        
+        try:
+            converter.convert_all()
+            return 0
+        except KeyboardInterrupt:
+            print(f"\n{Fore.YELLOW}Conversion interrompue par l'utilisateur.{Style.RESET_ALL}")
+            return 130
+        except Exception as e:
+            print(f"{Fore.RED}Erreur fatale: {str(e)}{Style.RESET_ALL}")
+            return 1
+    
+    # Si des arguments sont fournis, utiliser l'interface en ligne de commande standard
     parser = argparse.ArgumentParser(
         description=f'{Fore.CYAN}Convertisseur de fichiers XML Odoo vers la syntaxe Odoo 18{Style.RESET_ALL}',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -786,11 +1367,6 @@ def main():
                       help='Activer le traitement avancé des conditions complexes dans les attributs attrs')
     parser.add_argument('--overcome-all', action='store_true',
                       help='Activer toutes les fonctionnalités pour surmonter les limitations')
-    
-    # Personnalisation de l'aide
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
     
     args = parser.parse_args()
     
