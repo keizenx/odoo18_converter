@@ -1,6 +1,6 @@
 # Odoo 18 - Syntax Converter
 
-![Odoo 18 converter interface](Screenshot%2025-05-30%021259.png)
+![Odoo 18 Converter Interface](Screenshot%202025-05-30%20021259.png)
 
 This Python script automatically converts Odoo files (mainly XML) from the old syntax to the new Odoo 18 syntax.
 
