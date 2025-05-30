@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <!-- Exemple 1: tree à list -->
+        <!-- Example 1: tree to list -->
         <record id="view_example_tree" model="ir.ui.view">
             <field name="name">example.model.tree</field>
             <field name="model">example.model</field>
             <field name="arch" type="xml">
-                <list string="Exemples">
+                <list string="Examples">
                     <field name="name"/>
                     <field name="date"/>
                     <field name="state"/>
@@ -15,15 +15,15 @@
             </field>
         </record>
 
-        <!-- Exemple 2: attrs - condition simple -->
+        <!-- Example 2: attrs - simple condition -->
         <record id="view_example_form" model="ir.ui.view">
             <field name="name">example.model.form</field>
             <field name="model">example.model</field>
             <field name="arch" type="xml">
-                <form string="Exemple">
+                <form string="Example">
                     <header>
-                        <button string="Valider" invisible="state != 'draft'" type="object" name="action_validate"/>
-                        <button string="Annuler" invisible="state != 'confirmed'" type="object" name="action_cancel"/>
+                        <button string="Validate" invisible="state != 'draft'" type="object" name="action_validate"/>
+                        <button string="Cancel" invisible="state != 'confirmed'" type="object" name="action_cancel"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
@@ -39,12 +39,12 @@
             </field>
         </record>
 
-        <!-- Exemple 3: attrs - conditions OR -->
+        <!-- Example 3: attrs - OR conditions -->
         <record id="view_example_form2" model="ir.ui.view">
             <field name="name">example.model.form2</field>
             <field name="model">example.model</field>
             <field name="arch" type="xml">
-                <form string="Exemple 2">
+                <form string="Example 2">
                     <sheet>
                         <group>
                             <field name="department_id" invisible="state == 'done' or type == 'internal'"/>
@@ -55,7 +55,7 @@
             </field>
         </record>
 
-        <!-- Exemple 4: Widget daterange -->
+        <!-- Example 4: Daterange widget -->
         <record id="view_date_range_example" model="ir.ui.view">
             <field name="name">date.range.example</field>
             <field name="model">date.range.example</field>
@@ -73,7 +73,7 @@
             </field>
         </record>
 
-        <!-- Exemple 5: Configuration settings -->
+        <!-- Example 5: Configuration settings -->
         <record id="res_config_settings_view_inherit_example" model="ir.ui.view">
             <field name="name">res.config.settings.view.form.inherit.example</field>
             <field name="model">res.config.settings</field>
@@ -98,4 +98,4 @@
             </field>
         </record>
     </data>
-</odoo> 
+</odoo>
