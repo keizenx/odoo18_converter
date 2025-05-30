@@ -1,24 +1,24 @@
-# Odoo 18 - Convertisseur de Syntaxe
+# Odoo 18 - Syntax Converter
 
-Ce script Python permet de convertir automatiquement les fichiers Odoo (principalement XML) de l'ancienne syntaxe vers la nouvelle syntaxe d'Odoo 18.
+This Python script automatically converts Odoo files (mainly XML) from the old syntax to the new Odoo 18 syntax.
 
-## Fonctionnalités
+## Features
 
-Le script effectue les conversions suivantes:
+The script performs the following conversions:
 
-1. **Conversion des tags XML** : Remplace `<tree>` par `<list>`
-2. **Simplification des attributs conditionnels** : Convertit les attributs `attrs` et `states` vers la nouvelle syntaxe simplifiée
-3. **Mise à jour du widget daterange** : Passe à la nouvelle configuration du widget daterange
-4. **Simplification du chatter** : Remplace la structure complexe du chatter par la balise simplifiée `<chatter/>`
-5. **Conversion des res.config.settings** : Adapte la structure des pages de paramètres à la nouvelle syntaxe
-6. **Conversion des fichiers Python** : Supprime les attributs `states` des définitions de champs dans les modèles Python
-7. **Traitement avancé des conditions** : Conversion des conditions complexes avec plusieurs opérateurs OR/AND
+1. **XML tag conversion**: Replaces `<tree>` with `<list>`
+2. **Conditional attribute simplification**: Converts `attrs` and `states` attributes to the new simplified syntax
+3. **Daterange widget update**: Migrates to the new daterange widget configuration
+4. **Chatter simplification**: Replaces complex chatter structure with the simplified `<chatter/>` tag
+5. **res.config.settings conversion**: Adapts settings page structure to the new syntax
+6. **Python file conversion**: Removes `states` attributes from field definitions in Python models
+7. **Advanced condition processing**: Converts complex conditions with multiple OR/AND operators
 
-## Prérequis
+## Prerequisites
 
-- Python 3.6 ou supérieur
-- Module lxml (`pip install lxml`)
-- Module colorama (`pip install colorama`)
+- Python 3.6 or higher
+- lxml module (`pip install lxml`)
+- colorama module (`pip install colorama`)
 
 ## Installation
 
@@ -26,104 +26,104 @@ Le script effectue les conversions suivantes:
 pip install lxml colorama
 ```
 
-## Utilisation
+## Usage
 
-### Mode interactif
+### Interactive mode
 
-Lancez simplement le script sans arguments pour utiliser le mode interactif qui vous guidera pas à pas :
+Simply run the script without arguments to use the interactive mode that will guide you step by step:
 
 ```bash
 python odoo18_converter.py
 ```
 
-Ce mode vous demandera successivement :
-1. Le chemin du module Odoo à convertir
-2. Les différentes options de conversion
-3. Une confirmation avant de lancer la conversion
+This mode will ask you for:
+1. The path to the Odoo module to convert
+2. Various conversion options
+3. Confirmation before starting the conversion
 
-### Mode ligne de commande
+### Command line mode
 
 ```bash
-python odoo18_converter.py chemin/vers/module [options]
+python odoo18_converter.py path/to/module [options]
 ```
 
 ### Options
 
-- `source_dir` : Chemin vers le répertoire contenant les fichiers à convertir (obligatoire)
-- `-o`, `--output-dir` : Répertoire de sortie pour les fichiers convertis (si non spécifié, modifie les fichiers en place)
-- `--no-backup` : Ne pas créer de sauvegarde des fichiers originaux (par défaut: sauvegarde activée)
-- `-v`, `--verbose` : Afficher des informations détaillées sur le processus
-- `-e`, `--extensions` : Extensions de fichiers à traiter (par défaut: .xml)
-- `-s`, `--skip` : Patterns regex pour ignorer certains fichiers
-- `-r`, `--report` : Chemin du fichier pour sauvegarder le rapport de conversion (JSON)
-- `-w`, `--workers` : Nombre de processus worker pour le traitement parallèle (par défaut: 1)
-- `-d`, `--dry-run` : Mode test - ne pas modifier les fichiers, simplement afficher ce qui serait fait
-- `-i`, `--interactive` : Mode interactif - demande confirmation avant chaque modification
-- `-l`, `--show-limitations` : Afficher uniquement les limitations connues du script et quitter
+- `source_dir`: Path to the directory containing files to convert (required)
+- `-o`, `--output-dir`: Output directory for converted files (if not specified, modifies files in place)
+- `--no-backup`: Don't create backup of original files (default: backup enabled)
+- `-v`, `--verbose`: Display detailed information about the process
+- `-e`, `--extensions`: File extensions to process (default: .xml)
+- `-s`, `--skip`: Regex patterns to ignore certain files
+- `-r`, `--report`: Path to save the conversion report file (JSON)
+- `-w`, `--workers`: Number of worker processes for parallel processing (default: 1)
+- `-d`, `--dry-run`: Test mode - don't modify files, just show what would be done
+- `-i`, `--interactive`: Interactive mode - ask for confirmation before each modification
+- `-l`, `--show-limitations`: Show only known script limitations and exit
 
-### Options pour surmonter les limitations
+### Options to overcome limitations
 
-- `--convert-python` : Convertir également les fichiers Python (.py) pour supprimer les attributs states
-- `--advanced-conditions` : Activer le traitement avancé des conditions complexes dans les attributs attrs
-- `--overcome-all` : Activer toutes les fonctionnalités pour surmonter les limitations
+- `--convert-python`: Also convert Python files (.py) to remove states attributes
+- `--advanced-conditions`: Enable advanced processing of complex conditions in attrs attributes
+- `--overcome-all`: Enable all features to overcome limitations
 
-### Exemples
+### Examples
 
 ```bash
-# Mode interactif (recommandé pour les nouveaux utilisateurs)
+# Interactive mode (recommended for new users)
 python odoo18_converter.py
 
-# Convertir tous les fichiers XML d'un module
-python odoo18_converter.py ./mon_module/
+# Convert all XML files in a module
+python odoo18_converter.py ./my_module/
 
-# Convertir avec plus d'informations
-python odoo18_converter.py ./mon_module/ -v
+# Convert with more information
+python odoo18_converter.py ./my_module/ -v
 
-# Convertir sans créer de sauvegardes
-python odoo18_converter.py ./mon_module/ --no-backup
+# Convert without creating backups
+python odoo18_converter.py ./my_module/ --no-backup
 
-# Convertir des fichiers avec différentes extensions
-python odoo18_converter.py ./mon_module/ -e .xml .qweb
+# Convert files with different extensions
+python odoo18_converter.py ./my_module/ -e .xml .qweb
 
-# Convertir en mode test (aucune modification réelle)
-python odoo18_converter.py ./mon_module/ -d
+# Convert in test mode (no actual modifications)
+python odoo18_converter.py ./my_module/ -d
 
-# Sauvegarder les fichiers convertis dans un autre répertoire
-python odoo18_converter.py ./mon_module/ -o ./mon_module_odoo18/
+# Save converted files to another directory
+python odoo18_converter.py ./my_module/ -o ./my_module_odoo18/
 
-# Ignorer certains fichiers
-python odoo18_converter.py ./mon_module/ -s "test_" "demo_"
+# Ignore certain files
+python odoo18_converter.py ./my_module/ -s "test_" "demo_"
 
-# Traitement parallèle avec 4 workers
-python odoo18_converter.py ./mon_module/ -w 4
+# Parallel processing with 4 workers
+python odoo18_converter.py ./my_module/ -w 4
 
-# Générer un rapport détaillé
-python odoo18_converter.py ./mon_module/ -r rapport_conversion.json
+# Generate detailed report
+python odoo18_converter.py ./my_module/ -r conversion_report.json
 
-# Convertir avec analyse des fichiers Python (suppression des states)
-python odoo18_converter.py ./mon_module/ --convert-python
+# Convert with Python file analysis (remove states)
+python odoo18_converter.py ./my_module/ --convert-python
 
-# Activer le traitement avancé des conditions complexes
-python odoo18_converter.py ./mon_module/ --advanced-conditions
+# Enable advanced complex condition processing
+python odoo18_converter.py ./my_module/ --advanced-conditions
 
-# Activer toutes les fonctionnalités avancées
-python odoo18_converter.py ./mon_module/ --overcome-all
+# Enable all advanced features
+python odoo18_converter.py ./my_module/ --overcome-all
 ```
 
-## Fonctionnement
+## How it works
 
-Le script parcourt récursivement le répertoire spécifié et ses sous-répertoires, recherche tous les fichiers avec les extensions indiquées, et applique les transformations nécessaires pour rendre le code compatible avec Odoo 18.
+The script recursively scans the specified directory and its subdirectories, searches for all files with the indicated extensions, and applies the necessary transformations to make the code compatible with Odoo 18.
 
-Pour chaque fichier modifié, une sauvegarde est créée avec l'extension `.bak` (sauf si l'option `--no-backup` est utilisée ou si un répertoire de sortie est spécifié avec `--output-dir`).
+For each modified file, a backup is created with the `.bak` extension (unless the `--no-backup` option is used or an output directory is specified with `--output-dir`).
 
-## Fonctionnalités avancées
+## Advanced features
 
-### Conversion des fichiers Python
+### Python file conversion
 
-L'option `--convert-python` permet au script d'analyser et de modifier les fichiers Python pour supprimer les attributs `states` des définitions de champs, comme ceci :
+The `--convert-python` option allows the script to analyze and modify Python files to remove `states` attributes from field definitions, like this:
 
 ```python
-# Avant
+# Before
 date = fields.Date(
     string='Date',
     required=True,
@@ -131,7 +131,7 @@ date = fields.Date(
     copy=False,
 )
 
-# Après
+# After
 date = fields.Date(
     string='Date',
     required=True,
@@ -139,83 +139,83 @@ date = fields.Date(
 )
 ```
 
-### Traitement des conditions complexes
+### Complex condition processing
 
-L'option `--advanced-conditions` active des algorithmes avancés pour traiter des conditions plus complexes dans les attributs XML, notamment celles utilisant plusieurs opérateurs logiques (`|` et `&`) imbriqués.
+The `--advanced-conditions` option activates advanced algorithms to handle more complex conditions in XML attributes, especially those using multiple nested logical operators (`|` and `&`).
 
 ```xml
-<!-- Avant (très complexe) -->
+<!-- Before (very complex) -->
 <field name="project_id" attrs="{'invisible': ['|', '|', '&', ('state', '=', 'done'), ('type', '=', 'service'), ('type', '=', 'consu'), ('type', '=', 'product')]}"/>
 
-<!-- Après -->
+<!-- After -->
 <field name="project_id" invisible="(state == 'done' and type == 'service') or type == 'consu' or type == 'product'"/>
 ```
 
-## Mode interactif
+## Interactive mode
 
-Le script propose désormais un mode interactif qui guide l'utilisateur pas à pas dans le processus de conversion :
+The script now offers an interactive mode that guides the user step by step through the conversion process:
 
-1. **Sélection du répertoire** : Le script demande d'abord le chemin du module Odoo à convertir
-2. **Configuration des options** : Il propose ensuite de configurer les différentes options de conversion
-3. **Confirmation** : Avant de lancer la conversion, un résumé des options est affiché pour confirmation
+1. **Directory selection**: The script first asks for the path to the Odoo module to convert
+2. **Option configuration**: It then offers to configure the various conversion options
+3. **Confirmation**: Before starting the conversion, a summary of options is displayed for confirmation
 
-Ce mode est particulièrement utile pour les utilisateurs qui découvrent l'outil ou qui préfèrent une approche guidée plutôt que de spécifier toutes les options en ligne de commande.
+This mode is particularly useful for users discovering the tool or who prefer a guided approach rather than specifying all options on the command line.
 
-## Changements supportés
+## Supported changes
 
-### 1. De `<tree>` à `<list>`
+### 1. From `<tree>` to `<list>`
 
 ```xml
-<!-- Avant -->
+<!-- Before -->
 <tree>
     <field name="name"/>
 </tree>
 
-<!-- Après -->
+<!-- After -->
 <list>
     <field name="name"/>
 </list>
 ```
 
-### 2. Attributs conditionnels simplifiés
+### 2. Simplified conditional attributes
 
 ```xml
-<!-- Avant -->
+<!-- Before -->
 <field name="shift_id" attrs="{'invisible': [('shift_schedule', '=', [])]}"/>
 
-<!-- Après -->
+<!-- After -->
 <field name="shift_id" invisible="not shift_schedule"/>
 ```
 
-### 3. Widget daterange
+### 3. Daterange widget
 
 ```xml
-<!-- Avant -->
+<!-- Before -->
 <field name="start_date" widget="daterange" options="{'related_end_date': 'end_date'}"/>
 <field name="end_date" widget="daterange" options="{'related_start_date': 'start_date'}"/>
 
-<!-- Après -->
+<!-- After -->
 <field name="start_date" widget="daterange" options="{'end_date_field': 'end_date'}"/>
 ```
 
-### 4. Chatter simplifié
+### 4. Simplified chatter
 
 ```xml
-<!-- Avant -->
+<!-- Before -->
 <div class="oe_chatter">
     <field name="message_follower_ids" widget="mail_followers"/>
     <field name="activity_ids" widget="mail_activity"/>
     <field name="message_ids" widget="mail_thread"/>
 </div>
 
-<!-- Après -->
+<!-- After -->
 <chatter/>
 ```
 
-### 5. Structure res.config simplifiée
+### 5. Simplified res.config structure
 
 ```xml
-<!-- Avant -->
+<!-- Before -->
 <div class="app_settings_block" data-string="Application Settings" string="Application Settings" data-key="key_example">
     <h2>Example Settings</h2>
     <div class="row mt16 o_settings_container">
@@ -231,7 +231,7 @@ Ce mode est particulièrement utile pour les utilisateurs qui découvrent l'outi
     </div>
 </div>
 
-<!-- Après -->
+<!-- After -->
 <app string="Application Settings">
     <block title="Example Settings">
         <setting string="Example Setting" help="Description for the example setting">
@@ -241,25 +241,25 @@ Ce mode est particulièrement utile pour les utilisateurs qui découvrent l'outi
 </app>
 ```
 
-## Nouvelles fonctionnalités
+## New features
 
-1. **Interface colorée** : Utilisation de couleurs dans le terminal pour une meilleure lisibilité
-2. **Rapport détaillé** : Statistiques complètes sur les conversions effectuées
-3. **Mode parallèle** : Traitement multi-processus pour une conversion plus rapide
-4. **Mode test** : Possibilité de simuler les conversions sans modifier les fichiers
-5. **Mode préservation** : Sauvegarde des fichiers convertis dans un répertoire séparé
-6. **Filtrage avancé** : Ignorer certains fichiers selon des patterns regex
-7. **Génération de rapport** : Export des statistiques au format JSON
-8. **Conversion Python** : Analyse et modification des fichiers Python pour supprimer les attributs `states`
-9. **Traitement de conditions complexes** : Support pour les conditions avec plusieurs opérateurs logiques
-10. **Mode interactif** : Interface guidée pour configurer facilement la conversion
+1. **Colorized interface**: Uses colors in the terminal for better readability
+2. **Detailed reporting**: Complete statistics on performed conversions
+3. **Parallel mode**: Multi-process processing for faster conversion
+4. **Test mode**: Ability to simulate conversions without modifying files
+5. **Preservation mode**: Save converted files to a separate directory
+6. **Advanced filtering**: Ignore certain files based on regex patterns
+7. **Report generation**: Export statistics in JSON format
+8. **Python conversion**: Analysis and modification of Python files to remove `states` attributes
+9. **Complex condition processing**: Support for conditions with multiple logical operators
+10. **Interactive mode**: Guided interface to easily configure the conversion
 
-## Limitations résiduelles
+## Remaining limitations
 
-Bien que le script offre maintenant des options pour surmonter la plupart des limitations initiales, certains cas très spécifiques peuvent encore nécessiter une intervention manuelle :
+While the script now offers options to overcome most of the initial limitations, some very specific cases may still require manual intervention:
 
-1. Certaines structures XML très personnalisées ou complexes
-2. Cas spéciaux d'attributs conditionnels avec des expressions très complexes
-3. Définitions de champs Python utilisant des approches non standard
+1. Some very customized or complex XML structures
+2. Special cases of conditional attributes with very complex expressions
+3. Python field definitions using non-standard approaches
 
-Il est toujours recommandé de vérifier les fichiers convertis, surtout dans les cas complexes. 
+It's always recommended to review the converted files, especially in complex cases.
